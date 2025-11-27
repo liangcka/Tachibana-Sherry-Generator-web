@@ -59,28 +59,64 @@ async function pushToGitHub() {
         
         console.log('提交创建成功:', commitHash);
         
+        // 更新 HEAD 引用
+        await git.writeRef({
+            fs,
+            dir,
+            ref: 'refs/heads/main',
+            value: commitHash
+        });
+        
+        console.log('HEAD 引用已更新');
+        
+        // 检查远程仓库配置
+        const remotes = await git.listRemotes({ fs, dir });
+        console.log('远程仓库配置:', remotes);
+        
+        if (remotes.length === 0) {
+            console.log('未配置远程仓库，需要先添加远程仓库');
+            return;
+        }
+        
+        // 使用第一个远程仓库进行推送
+        const remote = remotes[0];
+        console.log(`使用远程仓库: ${remote.remote} -> ${remote.url}`);
+        
         // 推送到远程仓库
         console.log('正在推送到 GitHub...');
         
-        const pushResult = await git.push({
-            fs,
-            http,
-            dir,
-            remote: 'origin',
-            ref: 'main',
-            onAuth: () => {
-                // 这里需要提供认证信息
-                console.log('需要 GitHub 认证信息');
-                console.log('请提供 Personal Access Token 或用户名密码');
-                return {
-                    username: 'your-username', // 需要替换为实际的用户名
-                    password: 'your-token-or-password' // 需要替换为 token 或密码
-                };
-            }
-        });
-        
-        console.log('✅ 推送成功!');
-        console.log('推送结果:', pushResult);
+        try {
+            const pushResult = await git.push({
+                fs,
+                http,
+                dir,
+                remote: remote.remote,
+                remoteRef: 'main',
+                ref: 'main',
+                onAuth: () => {
+                    // 这里需要提供认证信息
+                    console.log('需要 GitHub 认证信息');
+                    console.log('请提供 Personal Access Token 或用户名密码');
+                    return {
+                        username: 'liangcka', // 你的 GitHub 用户名
+                        password: 'YOUR_GITHUB_TOKEN' // 需要替换为你的 GitHub token
+                    };
+                }
+            });
+            
+            console.log('✅ 推送成功!');
+            console.log('推送结果:', pushResult);
+            
+        } catch (authError) {
+            console.log('\n🔐 GitHub 认证指南:');
+            console.log('1. 访问 https://github.com/settings/tokens');
+            console.log('2. 点击 "Generate new token"');
+            console.log('3. 选择 "repo" 权限');
+            console.log('4. 生成 token 并复制');
+            console.log('5. 在脚本中替换 YOUR_GITHUB_TOKEN');
+            console.log('\n或者使用以下命令手动推送:');
+            console.log('git push origin main');
+        }
         
     } catch (error) {
         console.error('❌ 推送过程中出现错误:', error);
@@ -92,8 +128,7 @@ async function pushToGitHub() {
             console.log('   - 点击 "Generate new token"');
             console.log('   - 选择 "repo" 权限');
             console.log('   - 生成 token 并复制');
-            console.log('   - 在脚本中替换 username 和 password');
-            console.log('2. 或者使用用户名和密码（如果启用了双重验证则不推荐）');
+            console.log('   - 在脚本中替换 YOUR_GITHUB_TOKEN');
         }
     }
 }
